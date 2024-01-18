@@ -1,21 +1,25 @@
 package model
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/google/uuid"
+)
 
 type Pipeline struct {
-	Pipes           []*Pipe
+	Pipes           []*pipe
 	mu              sync.Mutex
-	executedPipeIDs map[int]bool
+	executedPipeIDs map[uuid.UUID]bool
 }
 
-func NewPipeline(pipes ...*Pipe) *Pipeline {
+func NewPipeline(pipes ...*pipe) *Pipeline {
 	return &Pipeline{
 		Pipes:           pipes,
-		executedPipeIDs: make(map[int]bool),
+		executedPipeIDs: make(map[uuid.UUID]bool),
 	}
 }
 
-func (p *Pipeline) Pipe(pipe *Pipe) {
+func (p *Pipeline) Pipe(pipe *pipe) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.Pipes = append(p.Pipes, pipe)
@@ -24,18 +28,18 @@ func (p *Pipeline) Pipe(pipe *Pipe) {
 func (p *Pipeline) Process(payload interface{}) {
 	var wg sync.WaitGroup
 
-	for _, pipe := range p.Pipes {
+	for _, pi := range p.Pipes {
 		wg.Add(1)
-		go func(pipe *Pipe) {
+		go func(pipe *pipe) {
 			defer wg.Done()
 			p.execute(pipe, payload)
-		}(pipe)
+		}(pi)
 	}
 
 	wg.Wait()
 }
 
-func (p *Pipeline) execute(pipe *Pipe, payload interface{}) {
+func (p *Pipeline) execute(pipe *pipe, payload interface{}) {
 	p.mu.Lock()
 	if _, executed := p.executedPipeIDs[pipe.ID]; executed {
 		p.mu.Unlock()
@@ -57,7 +61,7 @@ func (p *Pipeline) execute(pipe *Pipe, payload interface{}) {
 	pipe.Err = err
 }
 
-func (p *Pipeline) findPipeById(id int) *Pipe {
+func (p *Pipeline) findPipeById(id uuid.UUID) *pipe {
 	for _, pipe := range p.Pipes {
 		if pipe.ID == id {
 			return pipe
@@ -69,6 +73,6 @@ func (p *Pipeline) findPipeById(id int) *Pipe {
 
 func (p *Pipeline) Reset() {
 	p.mu.Lock()
-	p.executedPipeIDs = make(map[int]bool)
+	p.executedPipeIDs = make(map[uuid.UUID]bool)
 	p.mu.Unlock()
 }
