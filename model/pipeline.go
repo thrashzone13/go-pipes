@@ -21,21 +21,21 @@ func (p *Pipeline) Pipe(pipe *Pipe) {
 	p.Pipes = append(p.Pipes, pipe)
 }
 
-func (p *Pipeline) Process() {
+func (p *Pipeline) Process(payload interface{}) {
 	var wg sync.WaitGroup
 
 	for _, pipe := range p.Pipes {
 		wg.Add(1)
 		go func(pipe *Pipe) {
 			defer wg.Done()
-			p.execute(pipe)
+			p.execute(pipe, payload)
 		}(pipe)
 	}
 
 	wg.Wait()
 }
 
-func (p *Pipeline) execute(pipe *Pipe) {
+func (p *Pipeline) execute(pipe *Pipe, payload interface{}) {
 	p.mu.Lock()
 	if _, executed := p.executedPipeIDs[pipe.ID]; executed {
 		p.mu.Unlock()
@@ -48,11 +48,11 @@ func (p *Pipeline) execute(pipe *Pipe) {
 	for _, depId := range pipe.Dependencies {
 		dep := p.findPipeById(depId)
 		if dep != nil {
-			p.execute(dep)
+			p.execute(dep, payload)
 		}
 	}
 
-	result, err := pipe.Function()
+	result, err := pipe.Function(payload)
 	pipe.Result = result
 	pipe.Err = err
 }
