@@ -39,36 +39,26 @@ func (p *Pipeline) Process(payload interface{}) {
 	wg.Wait()
 }
 
-func (p *Pipeline) execute(pipe *pipe, payload interface{}) {
+func (p *Pipeline) execute(pipe *pipe, payload interface{}) (interface{}, error) {
 	p.mu.Lock()
 	if _, executed := p.executedPipeIDs[pipe.ID]; executed {
 		p.mu.Unlock()
-		return
+		return pipe.Result, pipe.Err
 	}
 
 	p.executedPipeIDs[pipe.ID] = true
 	p.mu.Unlock()
 
-	for _, depId := range pipe.Dependencies {
-		dep := p.findPipeById(depId)
-		if dep != nil {
-			p.execute(dep, payload)
-		}
+	for _, dep := range pipe.Dependencies {
+		result, _ := p.execute(dep, payload)
+		payload = result
 	}
 
 	result, err := pipe.Function(payload)
 	pipe.Result = result
 	pipe.Err = err
-}
 
-func (p *Pipeline) findPipeById(id uuid.UUID) *pipe {
-	for _, pipe := range p.Pipes {
-		if pipe.ID == id {
-			return pipe
-		}
-	}
-
-	return nil
+	return payload, err
 }
 
 func (p *Pipeline) Reset() {

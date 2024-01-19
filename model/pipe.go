@@ -5,7 +5,7 @@ import "github.com/google/uuid"
 type pipe struct {
 	ID           uuid.UUID
 	Function     func(interface{}) (interface{}, error)
-	Dependencies []uuid.UUID
+	Dependencies []*pipe
 	Result       interface{}
 	Err          error
 }
@@ -17,6 +17,6 @@ func NewPipe(function func(payload interface{}) (interface{}, error)) *pipe {
 	}
 }
 
-func (p *pipe) AddDependency(id uuid.UUID) {
-	p.Dependencies = append(p.Dependencies, id)
+func (p *pipe) AddDependency(pipe *pipe) {
+	p.Dependencies = append(p.Dependencies, pipe)
 }
